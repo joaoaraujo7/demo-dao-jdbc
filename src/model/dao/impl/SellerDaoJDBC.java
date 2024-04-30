@@ -21,7 +21,35 @@ public class SellerDaoJDBC implements SellerDao {
 
     @Override
     public void insert(Seller seller) {
+        PreparedStatement st = null;
 
+        try {
+            String sql = "insert into seller(name, email, birthdate, basesalary, departmentid) values(?, ?, ?, ?, ?);";
+            st = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+
+            st.setString(1, seller.getName());
+            st.setString(2, seller.getEmail());
+            st.setDate(3, Date.valueOf(seller.getBirthDate()));
+            st.setDouble(4, seller.getBaseSalary());
+            st.setInt(5, seller.getDepartment().getId());
+
+            int rowsAffect = st.executeUpdate();
+
+            if (rowsAffect > 0) {
+                ResultSet rs = st.getGeneratedKeys();
+                if (rs.next()) {
+                    int id = rs.getInt(1);
+                    seller.setId(id);
+                }
+                DB.closeResultSet(rs);
+            } else {
+                throw new DbException("Unexpected error! No rows affected!");
+            }
+        } catch (SQLException e) {
+            throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+        }
     }
 
     @Override
@@ -99,7 +127,8 @@ public class SellerDaoJDBC implements SellerDao {
                     "select s.*, d.name as DepName " +
                             "from seller s " +
                             "inner join department d " +
-                            "on s.DepartmentId = d.Id ";
+                            "on s.DepartmentId = d.Id " +
+                            "order by s.id";
             st = conn.createStatement();
             rs = st.executeQuery(sql);
 
