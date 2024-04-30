@@ -91,7 +91,40 @@ public class SellerDaoJDBC implements SellerDao {
 
     @Override
     public List<Seller> findAll() {
-        return List.of();
+        Statement st = null;
+        ResultSet rs = null;
+
+        try {
+            String sql =
+                    "select s.*, d.name as DepName " +
+                            "from seller s " +
+                            "inner join department d " +
+                            "on s.DepartmentId = d.Id ";
+            st = conn.createStatement();
+            rs = st.executeQuery(sql);
+
+            List<Seller> sellers = new ArrayList<>();
+            Map<Integer, Department> departmentMap = new HashMap<>();
+            while (rs.next()) {
+                Department dep = departmentMap.get(rs.getInt("DepartmentId"));
+
+                if (dep == null) {
+                    dep = instantiateDepartment(rs);
+                    departmentMap.put(rs.getInt("DepartmentId"), dep);
+                }
+
+                Seller seller = instantiateSeller(rs, dep);
+                sellers.add(seller);
+            }
+
+            return sellers;
+
+        } catch (SQLException e) {
+            throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+            DB.closeResultSet(rs);
+        }
     }
 
     @Override
@@ -103,11 +136,11 @@ public class SellerDaoJDBC implements SellerDao {
         try {
             String sql =
                     "select s.*, d.name as DepName " +
-                    "from seller s " +
-                    "inner join department d " +
-                    "on s.DepartmentId = d.Id " +
-                    "where s.DepartmentId = ? " +
-                    "order by name;";
+                            "from seller s " +
+                            "inner join department d " +
+                            "on s.DepartmentId = d.Id " +
+                            "where s.DepartmentId = ? " +
+                            "order by name;";
 
             st = conn.prepareStatement(sql);
             st.setInt(1, department.getId());
@@ -131,7 +164,10 @@ public class SellerDaoJDBC implements SellerDao {
             return sellers;
 
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+            DB.closeResultSet(rs);
         }
     }
 }
